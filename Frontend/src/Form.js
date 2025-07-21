@@ -15,6 +15,9 @@ import {
   RadioGroup,
   Divider,
 } from '@mui/material';
+import axios from "axios";
+// import Webcam from "react-webcam";
+import Tesseract from "tesseract.js";
 
 const mockAutoFillData = {
 
@@ -47,6 +50,11 @@ const ApplicationForm = () => {
     postalCode: '',
     country: '',
   });
+  const [extractedText, setExtractText] = useState(null);
+  // const [idImage, setIdImage] = useState(null);
+  const [processing, setProcessing] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
 
   const [errors, setErrors] = useState({});
   const [file, setFile] = useState(null);
@@ -76,12 +84,40 @@ const ApplicationForm = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleFileUpload = (e) => {
-    const uploadedFile = e.target.files?.[0];
-    if (uploadedFile) {
-      setFile(uploadedFile);
-      handleAutoFill();
+  const handleFileUpload = async(e) => {
+    const uploadedFile = URL.createObjectURL(e.target.files?.[0]);
+    // if (uploadedFile) {
+    //   setFile(uploadedFile);
+    //   handleAutoFill();
+    // }
+
+    if (!uploadedFile) return;
+    setProcessing(true);
+    
+    // const {
+    //   data: { text },
+    // } = await Tesseract.recognize(uploadedFile, 'eng');
+    
+    // setExtractText(text);
+    const result = await Tesseract.recognize(uploadedFile, 'eng', {
+      logger: m => console.log(m),
+    });
+    setExtractText(result.data.text);
+     try {
+      
+    console.log(extractedText);
+      await axios.post("http://localhost:5000/send-otp", {
+        citizenId: extractedText || '123',
+        email: formData.email,
+        phone: '456'
+      });
+      setOtpSent(true);
+      alert("OTP sent via email or SMS");
+    } catch (err) {
+      alert("Error sending OTP");
     }
+     // handleAutoFill(); // after response come from BE need to set the personal info
+    setProcessing(false);
   };
 
   const handleSubmit = (e) => {
@@ -143,8 +179,10 @@ const ApplicationForm = () => {
             {inputMethod === 'upload' && (
               <>
                 <Button variant="outlined" component="label">
-                  Upload ID Image
-                  <input type="file" hidden onChange={handleFileUpload} />
+                  
+                  {processing ? "Processing..." : "Upload Image to extract ID"}
+                  <input type="file" accept="image/*"hidden onChange={handleFileUpload} />
+                
                 </Button>
                 {file && (
                   <Typography variant="body2" color="text.secondary">
@@ -305,12 +343,27 @@ const ApplicationForm = () => {
               helperText={errors.country}
               fullWidth
             />
-
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
-              <Button type="submit" variant="contained" color="primary">
-                Submit Form
-              </Button>
-            </Box>
+              {otpSent && (
+                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
+                  <input
+                    type="text"
+                    placeholder="Enter OTP"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                  />
+                  <Button 
+                  type="submit" variant="contained" color="primary"
+                  onClick={handleSubmit} 
+                  disabled={!extractedText || (!formData.email || !formData.phone)}>
+                    Submit Form
+                  </Button>
+               </Box>
+              )}
+              {/* <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
+                <Button type="submit" variant="contained" color="primary">
+                  Submit Form
+                </Button>
+              </Box> */}
           </Stack>
         </form>
       </Paper>
