@@ -14,27 +14,17 @@ import {
   Radio,
   RadioGroup,
   Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material';
-
-const mockAutoFillData = {
-
-  idNumber: 'ABC1234567',
-  firstName: 'Kapil',
-  lastName: 'Patil',
-  dob: '1990-01-01',
-  email: 'Kapil@example.com',
-  phone: '1234567890',
-  address1: '123 Main Street',
-  address2: 'Apt 4B',
-  city: 'London',
-  state: 'Greater London',
-  postalCode: 'W1A 1AA',
-  country: 'United Kingdom'
-};
+import axios from "axios";
+import Tesseract from "tesseract.js";
 
 const ApplicationForm = () => {
   const [formData, setFormData] = useState({
-    idNumber:'',
+    idNumber: '',
     firstName: '',
     lastName: '',
     dob: '',
@@ -47,19 +37,29 @@ const ApplicationForm = () => {
     postalCode: '',
     country: '',
   });
+  const [extractedText, setExtractText] = useState(null);
+  const [idImage, setIdImage] = useState(null);
+  const [processing, setProcessing] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
 
   const [errors, setErrors] = useState({});
   const [file, setFile] = useState(null);
   const [idType, setIdType] = useState('');
-  const [inputMethod, setInputMethod] = useState('upload');
+  const [inputMethod, setInputMethod] = useState('manual');
+  const [isUpload, setIsUpload] = useState(false);
+  const [openOtpDialog, setOpenOtpDialog] = useState(false);
+  const [otpStage, setOtpStage] = useState('send'); // 'send' or 'verify'
 
+  // Handle input changes
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // Validate form fields
   const validate = () => {
     const newErrors = {};
-    if(!formData.idNumber) newErrors.idNumber = 'ID Number is required'
+    if (!formData.idNumber) newErrors.idNumber = 'ID Number is required';
     if (!formData.firstName) newErrors.firstName = 'First Name is required';
     if (!formData.lastName) newErrors.lastName = 'Last name is required';
     if (!formData.dob) newErrors.dob = 'Date of Birth is required';
@@ -76,36 +76,128 @@ const ApplicationForm = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleFileUpload = (e) => {
-    const uploadedFile = e.target.files?.[0];
-    if (uploadedFile) {
-      setFile(uploadedFile);
-      handleAutoFill();
+  // Handle file upload and OCR
+  const handleFileUpload = async (e) => {
+    const uploadedFile = e.target.files[0];
+    if (!uploadedFile) return;
+    setFile(uploadedFile);
+    setProcessing(true);
+    try {
+      const { data: { text } } = await Tesseract.recognize(
+        uploadedFile,
+        'eng',
+        { logger: m => {} }
+      );
+      setExtractText(text);
+      // Extract ID Number from OCR text (simple example)
+      const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
+      let idNumber = '';
+      // Example: Find a line with 9 digits followed by 4GBR
+      const idLine = lines.find(line => /\d{9}4GBR/.test(line));
+      if (idLine) {
+        idNumber = idLine.substring(0, 9);
+      } else {
+        // fallback: first line with 9+ digits
+        const fallback = lines.find(line => /\d{9,}/.test(line));
+        if (fallback) idNumber = fallback.match(/\d{9,}/)[0];
+      }
+      setFormData(prev => ({
+        ...prev,
+        idNumber: idNumber || ''
+      }));
+    } catch (err) {
+      alert("OCR failed. Try another image.");
+    }
+    setProcessing(false);
+  };
+
+  // Fetch details based on ID Number
+  const handleFetchDetails = async () => {
+    if (!formData.idNumber) {
+      alert("Please provide an ID Number.");
+      return;
+    }
+    try {
+      // const response = await axios.get(`/api/user/${formData.idNumber}`);
+      // setFormData({ ...formData, ...response.data });
+      // For demo, just fill some mock data:
+      setFormData(prev => ({
+        ...prev,
+        firstName: 'John',
+        lastName: 'Doe',
+        dob: '1990-01-01',
+        country: 'United Kingdom',
+        city: 'London',
+        state: 'Greater London'
+      }));
+      setOpenOtpDialog(true); // Show OTP dialog as popup
+    } catch (err) {
+      alert("Failed to fetch details.");
     }
   };
 
-  const handleSubmit = (e) => {
+  // OTP submit
+  // OTP submit (Send OTP)
+  const handleSendOtp = async (e) => {
     e.preventDefault();
-    if (validate()) {
-      console.log('Form submitted:', formData);
-      alert('Form submitted successfully!');
+    if (!formData.email) return;
+    try {
+      await axios.post("http://localhost:5000/send-otp", {
+        citizenId: formData.idNumber || '123',
+        email: formData.email,
+        phone: formData.phone
+      });
+      setOtpSent(true);
+      setOtpStage('verify'); // Move to verify stage
+      alert("OTP sent via email & SMS");
+    } catch (err) {
+      alert("Error sending OTP");
     }
   };
-
-  const handleAutoFill = () => {
-    setFormData(mockAutoFillData);
+  // OTP verification
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    if (!otp) return;
+    try {
+      // Replace with your OTP verification API
+      await axios.post("http://localhost:5000/verify-otp", {
+        citizenId: formData.idNumber || '123',
+        otp
+      });
+      alert("OTP Verified! Form submitted.");
+      setOpenOtpDialog(false);
+      setOtpStage('send');
+      setOtp('');
+      setOtpSent(false);
+    } catch (err) {
+      alert("Invalid OTP");
+    }
+  };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validate()) return;
+    try {
+      await axios.post("http://localhost:5000/send-otp", {
+        citizenId: formData.idNumber || '123',
+        email: formData.email,
+        // phone: formData.phone
+      });
+      setOtpSent(true);
+      alert("OTP sent via email & SMS");
+    } catch (err) {
+      alert("Error sending OTP");
+    }
   };
 
   return (
     <Box
       sx={{
         minHeight: '100vh',
-        backgroundColor: '#f5f5f5', // standard light gray
+        backgroundColor: '#f5f5f5',
         py: 5,
         px: 2,
-     }}
+      }}
     >
-
       <Paper elevation={6} sx={{ maxWidth: 600, mx: 'auto', p: 4, backgroundColor: 'rgba(240, 240, 240)' }}>
         <Typography variant="h5" align="center" gutterBottom color="primary">
           Application & Registration Form
@@ -127,50 +219,120 @@ const ApplicationForm = () => {
               </Select>
             </FormControl>
 
-            {/* Upload or Manual Radio */}
             <FormControl component="fieldset">
               <RadioGroup
                 row
-                value={inputMethod}
-                onChange={(e) => setInputMethod(e.target.value)}
+                value={isUpload ? "upload" : "manual"}
+                onChange={(e) => setIsUpload(e.target.value === "upload")}
               >
-                <FormControlLabel value="upload" control={<Radio />} label="Upload File" />
-                <FormControlLabel value="manual" control={<Radio />} label="Enter ID Number" />
+                <FormControlLabel value="upload" control={<Radio />} label="Upload Image" />
               </RadioGroup>
             </FormControl>
 
-            {/* Upload Section */}
-            {inputMethod === 'upload' && (
+            {/* Conditional Rendering */}
+            {isUpload ? (
               <>
-                <Button variant="outlined" component="label">
-                  Upload ID Image
-                  <input type="file" hidden onChange={handleFileUpload} />
+                <Button variant="outlined" component="label" sx={{ mb: 2 }}>
+                  {processing ? "Processing..." : "Upload Image"}
+                  <input type="file" accept="image/*" hidden onChange={handleFileUpload} />
                 </Button>
                 {file && (
                   <Typography variant="body2" color="text.secondary">
                     {file.name}
                   </Typography>
                 )}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <TextField
+                    label="ID Number"
+                    name="idNumber"
+                    value={formData.idNumber}
+                    disabled
+                    sx={{ flexGrow: 1 }}
+                    fullWidth
+                  />
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={handleFetchDetails}
+                    disabled={!formData.idNumber}
+                  >
+                    Fetch Data
+                  </Button>
+                </Box>
               </>
+            ) : (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <TextField
+                  label="ID Number"
+                  name="idNumber"
+                  value={formData.idNumber}
+                  onChange={handleChange}
+                  error={!!errors.idNumber}
+                  helperText={errors.idNumber}
+                  sx={{ flexGrow: 1 }}
+                />
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleFetchDetails}
+                  disabled={!formData.idNumber}
+                >
+                  Fetch Details
+                </Button>
+              </Box>
             )}
+ {/* OTP Dialog */}
+            <Dialog open={openOtpDialog} onClose={() => { setOpenOtpDialog(false); setOtpStage('send'); setOtpSent(false); setOtp(''); }}>
+              <DialogTitle>OTP Authentication</DialogTitle>
+              <DialogContent>
+                {otpStage === 'send' && (
+                  <>
+                    <TextField
+                      label="Email ID"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      error={!!errors.email}
+                      helperText={errors.email}
+                      fullWidth
+                      sx={{ mb: 2 }}
+                    />
+                    <Button
+                      variant="contained"
+                      color="secondary"
+                      onClick={handleSendOtp}
+                      disabled={!formData.email}
+                      sx={{ mb: 2 }}
+                    >
+                      Send OTP
+                    </Button>
+                  </>
+                )}
+                {otpStage === 'verify' && (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+                    <TextField
+                      label="Enter OTP"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value)}
+                      fullWidth
+                    />
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      onClick={handleVerifyOtp}
+                      disabled={!otp}
+                    >
+                      Verify OTP
+                    </Button>
+                  </Box>
+                )}
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={() => { setOpenOtpDialog(false); setOtpStage('send'); setOtpSent(false); setOtp(''); }}>Close</Button>
+              </DialogActions>
+            </Dialog>
 
-            {/* Manual Entry */}
-            {inputMethod === 'manual' && (
-              <TextField
-                label="Enter ID Number"
-                name="IdNumber"
-                value={formData.idNumber}
-                onChange={handleChange}
-                error={!!errors.idNumber}
-                helperText={errors.idNumber}
-                fullWidth
-              />
-            )}
-
-            {/* ✅ Auto-Fill button above form section */}
-            <Button variant="outlined" color="secondary" onClick={handleAutoFill}>
-              Auto-Fill from ID
-            </Button>
 
             <Divider sx={{ my: 3, borderBottomWidth: 3, borderColor: 'primary.main' }} />
 
@@ -308,7 +470,7 @@ const ApplicationForm = () => {
 
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
               <Button type="submit" variant="contained" color="primary">
-                Submit Form
+                Submit
               </Button>
             </Box>
           </Stack>
