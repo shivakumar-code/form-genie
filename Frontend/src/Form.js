@@ -102,11 +102,12 @@
         setProcessing(false);
     };
     const handleSubmit = async () => {
+      debugger;
       try {
-        await axios.post("http://localhost:5000/send-otp", {
-          citizenId: extractedText || '123',
-          email: formData.email,
-          phone: '456'
+        await axios.post("http://localhost:5000/api/auth/send-otp", {
+          cardNumber: extractedText || 'CARD123456',
+          // email: formData.email,
+          // phone: '456'
         });
         setOtpSent(true);
         alert("OTP sent via email & SMS");

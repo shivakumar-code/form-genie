@@ -9,9 +9,9 @@ let otpStore = {}; // In-memory OTP store
 // Dummy user data based on card number
 const userDatabase = {
   'CARD123456': {
-    name: 'Kapil Patil',
-    email: 'kapil@example.com',
-    phone: '9876543210',
+    name: 'sahitya g',
+    email: 'autofillgenie@example.com',
+    phone: '8408883452',
     dob: '1999-10-10',
     address: 'Pune, India'
   },
@@ -29,7 +29,7 @@ router.post('/send-otp', async (req, res) => {
 
   const otp = generateOTP();
   otpStore[cardNumber] = { otp, timestamp: Date.now() };
-
+  console.log("***********", otp)
   await sendOTP(user.email, user.phone, otp);
   res.json({ success: true, message: 'OTP sent to email and phone.' });
 });
