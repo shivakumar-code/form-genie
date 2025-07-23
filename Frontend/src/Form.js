@@ -92,16 +92,8 @@
       //   handleAutoFill();
       // }
     }
-      const handleScanCard = async () => {
-        if (!idImage) return;
-        setProcessing(true);
-        const {
-          data: { text },
-        } = await Tesseract.recognize(idImage, 'eng');
-        setExtractText(text);
-        setProcessing(false);
-    };
-    const handleSubmit = async () => {
+    
+    const verifyTofetchOTP = async () => {
       debugger;
       try {
         await axios.post("http://localhost:5000/api/auth/send-otp", {
@@ -116,13 +108,25 @@
       }
     };
 
-    // const handleSubmit = (e) => {
-    //   e.preventDefault();
-    //   if (validate()) {
-    //     console.log('Form submitted:', formData);
-    //     alert('Form submitted successfully!');
-    //   }
-    // };
+      const fetchOtp = async () => {
+        if (!idImage) return;
+        setProcessing(true);
+        const {
+          data: { text },
+        } = await Tesseract.recognize(idImage, 'eng');
+        setExtractText(text);
+        setProcessing(false);
+        verifyTofetchOTP()
+    };
+    const handleSubmit = (e) => {
+      e.preventDefault();
+      // if (validate()) {
+      //   console.log('Form submitted:', formData);
+      //   alert('Form submitted successfully!');
+      // }
+      if(!otp) return
+
+    };
 
     const handleAutoFill = () => {
       // setFormData(text);
@@ -224,7 +228,9 @@
       </RadioGroup>
     </FormControl>
 
-    <Button onClick={handleScanCard} disabled={!idImage || processing}>
+    <Button onClick={fetchOtp}
+    //  disabled={!idImage || processing}
+     >
       {processing ? "Processing..." : "Scan ID Card/Extract Text"}
     </Button>
 
@@ -286,7 +292,11 @@
       helperText={errors.phone}
       fullWidth
     />
-
+      <TextField
+          label="Enter OTP"
+          value={otp}
+          onChange={(e) => setOtp(e.target.value)}
+        />
     <Button
       variant="contained"
       color="secondary"
