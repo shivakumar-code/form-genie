@@ -38,7 +38,7 @@ const ApplicationForm = () => {
     country: '',
   });
   const [extractedText, setExtractText] = useState(null);
-  const [idImage, setIdImage] = useState(null);
+  // const [idImage, setIdImage] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
@@ -46,7 +46,7 @@ const ApplicationForm = () => {
   const [errors, setErrors] = useState({});
   const [file, setFile] = useState(null);
   const [idType, setIdType] = useState('');
-  const [inputMethod, setInputMethod] = useState('manual');
+  // const [inputMethod, setInputMethod] = useState('manual');
   const [isUpload, setIsUpload] = useState(false);
   const [openOtpDialog, setOpenOtpDialog] = useState(false);
   const [otpStage, setOtpStage] = useState('send'); // 'send' or 'verify'
@@ -111,30 +111,47 @@ const ApplicationForm = () => {
     setProcessing(false);
   };
 
-  // Fetch details based on ID Number
-  const handleFetchDetails = async () => {
-    if (!formData.idNumber) {
-      alert("Please provide an ID Number.");
-      return;
-    }
+ const verifyTofetchOTP = async () => {
+    debugger;
     try {
-      // const response = await axios.get(`/api/user/${formData.idNumber}`);
-      // setFormData({ ...formData, ...response.data });
-      // For demo, just fill some mock data:
-      setFormData(prev => ({
-        ...prev,
-        firstName: 'John',
-        lastName: 'Doe',
-        dob: '1990-01-01',
-        country: 'United Kingdom',
-        city: 'London',
-        state: 'Greater London'
-      }));
-      setOpenOtpDialog(true); // Show OTP dialog as popup
+      await axios.post("http://localhost:5000/api/auth/send-otp", {
+        cardNumber: extractedText || 'CARD123456',
+        // email: formData.email,
+        // phone: '456'
+      });
+      setOpenOtpDialog(true);
+      setOtpSent(true);
+      setOtpStage('verify');
+      alert("OTP sent via email & SMS");
     } catch (err) {
-      alert("Failed to fetch details.");
+      alert("Error sending OTP");
     }
   };
+
+  // Fetch details based on ID Number
+  // const handleFetchDetails = async () => {
+  //   if (!formData.idNumber) {
+  //     alert("Please provide an ID Number.");
+  //     return;
+  //   }
+  //   try {
+  //     // const response = await axios.get(`/api/user/${formData.idNumber}`);
+  //     // setFormData({ ...formData, ...response.data });
+  //     // For demo, just fill some mock data:
+  //     setFormData(prev => ({
+  //       ...prev,
+  //       firstName: 'John',
+  //       lastName: 'Doe',
+  //       dob: '1990-01-01',
+  //       country: 'United Kingdom',
+  //       city: 'London',
+  //       state: 'Greater London'
+  //     }));
+  //     setOpenOtpDialog(true); // Show OTP dialog as popup
+  //   } catch (err) {
+  //     alert("Failed to fetch details.");
+  //   }
+  // };
 
   // OTP submit
   // OTP submit (Send OTP)
@@ -142,7 +159,7 @@ const ApplicationForm = () => {
     e.preventDefault();
     if (!formData.email) return;
     try {
-      await axios.post("http://localhost:5000/send-otp", {
+      await axios.post("http://localhost:5000/api/auth/send-otp", {
         citizenId: formData.idNumber || '123',
         email: formData.email,
         phone: formData.phone
@@ -160,8 +177,8 @@ const ApplicationForm = () => {
     if (!otp) return;
     try {
       // Replace with your OTP verification API
-      await axios.post("http://localhost:5000/verify-otp", {
-        citizenId: formData.idNumber || '123',
+      await axios.post("http://localhost:5000/api/auth/verify-otp-fetch-data", { //http://localhost:5000/api/auth/send-otp
+        cardNumber: formData.idNumber || '123',
         otp
       });
       alert("OTP Verified! Form submitted.");
@@ -177,7 +194,7 @@ const ApplicationForm = () => {
     e.preventDefault();
     if (!validate()) return;
     try {
-      await axios.post("http://localhost:5000/send-otp", {
+      await axios.post("http://localhost:5000/api/auth/send-otp", {
         citizenId: formData.idNumber || '123',
         email: formData.email,
         // phone: formData.phone
@@ -253,7 +270,7 @@ const ApplicationForm = () => {
                   <Button
                     variant="contained"
                     color="primary"
-                    onClick={handleFetchDetails}
+                    onClick={verifyTofetchOTP}
                     disabled={!formData.idNumber}
                   >
                     Fetch Data
@@ -274,7 +291,7 @@ const ApplicationForm = () => {
                 <Button
                   variant="contained"
                   color="primary"
-                  onClick={handleFetchDetails}
+                  onClick={verifyTofetchOTP}
                   disabled={!formData.idNumber}
                 >
                   Fetch Details
@@ -285,7 +302,7 @@ const ApplicationForm = () => {
             <Dialog open={openOtpDialog} onClose={() => { setOpenOtpDialog(false); setOtpStage('send'); setOtpSent(false); setOtp(''); }}>
               <DialogTitle>OTP Authentication</DialogTitle>
               <DialogContent>
-                {otpStage === 'send' && (
+                {otpSent && otpStage === 'send' && (
                   <>
                     <TextField
                       label="Email ID"
