@@ -123,12 +123,13 @@ const ApplicationForm = () => {
       // For demo, just fill some mock data:
       setFormData(prev => ({
         ...prev,
-        firstName: 'John',
-        lastName: 'Doe',
+        firstName: 'kapil',
+        lastName: 'patil',
         dob: '1990-01-01',
         country: 'United Kingdom',
         city: 'London',
-        state: 'Greater London'
+        state: 'Greater London',
+        email:'kapilpatil@gmail.com'
       }));
       setOpenOtpDialog(true); // Show OTP dialog as popup
     } catch (err) {
@@ -139,13 +140,12 @@ const ApplicationForm = () => {
   // OTP submit
   // OTP submit (Send OTP)
   const handleSendOtp = async (e) => {
-    e.preventDefault();
-    if (!formData.email) return;
+    // e.preventDefault();
+    // if (!formData.email) return;
     try {
       await axios.post("http://localhost:5000/send-otp", {
         citizenId: formData.idNumber || '123',
         email: formData.email,
-        phone: formData.phone
       });
       setOtpSent(true);
       setOtpStage('verify'); // Move to verify stage
@@ -187,7 +187,13 @@ const ApplicationForm = () => {
     } catch (err) {
       alert("Error sending OTP");
     }
-  };
+  }; 
+  const maskEmail =(email) => {
+    if(!email)return '';
+    const [user, domain] = email.split('@');
+    const visibleUser = user.slice(0, 2) + '***';
+    return `${visibleUser}@${domain}`;
+  }
 
   return (
     <Box
@@ -287,17 +293,21 @@ const ApplicationForm = () => {
               <DialogContent>
                 {otpStage === 'send' && (
                   <>
+                    <Typography variant="body1" sx={{mb:2}}>
+                     OTP will be sent to: <b>{maskEmail(formData.email) }</b>
+                     </Typography>
                     <TextField
-                      label="Email ID"
+                      label="Kap****@gmail.com"
                       name="email"
                       type="email"
-                      value={formData.email}
+                      value={maskEmail(formData.email)}
                       onChange={handleChange}
                       error={!!errors.email}
                       helperText={errors.email}
                       fullWidth
                       sx={{ mb: 2 }}
                     />
+                   
                     <Button
                       variant="contained"
                       color="secondary"
