@@ -227,6 +227,7 @@ const ApplicationForm = () => {
               <InputLabel id="id-type-label">Select ID Type</InputLabel>
               <Select
                 labelId="id-type-label"
+                label="Select ID Type"
                 value={idType}
                 onChange={(e) => setIdType(e.target.value)}
               >
