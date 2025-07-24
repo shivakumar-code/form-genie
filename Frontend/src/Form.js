@@ -160,7 +160,7 @@ const ApplicationForm = () => {
     if (!formData.email) return;
     try {
       await axios.post("http://localhost:5000/api/auth/send-otp", {
-        citizenId: formData.idNumber || '123',
+        cardNumber: formData.idNumber || '123',
         email: formData.email,
         phone: formData.phone
       });
