@@ -17,7 +17,8 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions
+  DialogActions,
+  Checkbox
 } from '@mui/material';
 import axios from "axios";
 import Tesseract from "tesseract.js";
@@ -38,7 +39,6 @@ const ApplicationForm = () => {
     country: '',
   });
   const [extractedText, setExtractText] = useState(null);
-  const [idImage, setIdImage] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
@@ -50,6 +50,7 @@ const ApplicationForm = () => {
   const [isUpload, setIsUpload] = useState(false);
   const [openOtpDialog, setOpenOtpDialog] = useState(false);
   const [otpStage, setOtpStage] = useState('send'); // 'send' or 'verify'
+  const [uploadDisabled, setUploadDisabled] = useState(false);
 
   // Handle input changes
   const handleChange = (e) => {
@@ -80,6 +81,8 @@ const ApplicationForm = () => {
   const handleFileUpload = async (e) => {
     const uploadedFile = e.target.files[0];
     if (!uploadedFile) return;
+    setUploadDisabled(true); // Disable after selecting a file
+
     setFile(uploadedFile);
     setProcessing(true);
     try {
@@ -212,12 +215,13 @@ const ApplicationForm = () => {
         <form onSubmit={handleSubmit}>
           <Stack spacing={2}>
             {/* ID Type Selection */}
-            <FormControl fullWidth>
+            <FormControl fullWidth required>
               <InputLabel id="id-type-label">Select ID Type</InputLabel>
               <Select
                 labelId="id-type-label"
                 value={idType}
                 onChange={(e) => setIdType(e.target.value)}
+                label="Select ID Type"
               >
                 <MenuItem value="driving">Driving Licence</MenuItem>
                 <MenuItem value="national">National Card</MenuItem>
@@ -225,15 +229,16 @@ const ApplicationForm = () => {
               </Select>
             </FormControl>
 
-            <FormControl component="fieldset">
-              <RadioGroup
-                row
-                value={isUpload ? "upload" : "manual"}
-                onChange={(e) => setIsUpload(e.target.value === "upload")}
-              >
-                <FormControlLabel value="upload" control={<Radio />} label="Upload Image" />
-              </RadioGroup>
-            </FormControl>
+            <FormControlLabel
+               control={
+                 <Checkbox
+                   checked={isUpload}
+                   onChange={(e) => setIsUpload(e.target.checked)}
+                 />
+               }
+               label="Upload Image"
+             />
+
 
             {/* Conditional Rendering */}
             {isUpload ? (
@@ -260,9 +265,9 @@ const ApplicationForm = () => {
                     variant="contained"
                     color="primary"
                     onClick={handleFetchDetails}
-                    disabled={!formData.idNumber}
+                    disabled={!formData.idNumber || !idType}
                   >
-                    Fetch Data
+                    Fetch Details
                   </Button>
                 </Box>
               </>
@@ -281,7 +286,7 @@ const ApplicationForm = () => {
                   variant="contained"
                   color="primary"
                   onClick={handleFetchDetails}
-                  disabled={!formData.idNumber}
+                  disabled={!formData.idNumber || !idType}
                 >
                   Fetch Details
                 </Button>
